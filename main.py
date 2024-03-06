@@ -1,49 +1,13 @@
-import pandas as pd
+import matplotlib
+
+matplotlib.use('TkAgg')  # Put this line at the beginning
+
 import matplotlib.pyplot as plt
+import pandas as pd
 import os
 import requests
 import tkinter as tk
 from functools import partial
-
-
-def refresh_portfolio(assets, units, prices):
-    new_prices = []
-    for asset in assets:
-        symbol = get_symbol(asset)
-        if symbol:
-            price = fetch_price(symbol)
-            if price is not None:
-                new_prices.append(price)
-            else:
-                print(f"Failed to fetch price for {asset}.")
-                new_prices.append(prices[assets.index(asset)])
-        else:
-            new_prices.append(prices[assets.index(asset)])
-
-    total_value = sum(units[i] * new_prices[i] for i in range(len(units)))
-    print(f"Total portfolio value: ${total_value:.2f}")
-    percentages = [(units[i] * new_prices[i] / total_value) * 100 for i in range(len(units))]
-
-    labels = [f"{assets[i]}: {percentages[i]:.2f}%" for i in range(len(units))]
-
-    colors = []
-    for stock in assets:
-        if stock == 'bitcoin':
-            colors.append('#FFA500')  # Orange
-        elif stock == 'cash':
-            colors.append('#32CD32')  # Green
-        elif stock == 'solana':
-            colors.append('#9370DB')  # Light blue
-        elif stock == 'meme':
-            colors.append('#FF6347')  # Tomato TODO rename to 'high risk trading'
-        else:
-            colors.append('#333333')  # Grey = unknown asset
-
-    fig, ax = plt.subplots(figsize=(8, 8))
-    ax.set_facecolor('#F0F0F0')
-    ax.pie(percentages, labels=labels, colors=colors, autopct='%1.1f%%', startangle=140)
-    ax.set_title('Portfolio Composition')
-    plt.show()
 
 
 def fetch_price(symbol):
@@ -72,13 +36,13 @@ def get_symbol(name):
 
 
 def create_pie_chart(assets, units, prices):
+    plt.close()
     total_value = sum(units[i] * prices[i] for i in range(len(units)))
     print(f"Total portfolio value: ${total_value:.2f}")
     percentages = [(units[i] * prices[i] / total_value) * 100 for i in range(len(units))]
 
     labels = [f"{assets[i]}: {percentages[i]:.2f}%" for i in range(len(units))]
 
-    # define colours for assets as needed
     colors = []
     for stock in assets:
         if stock == 'bitcoin':
@@ -90,7 +54,6 @@ def create_pie_chart(assets, units, prices):
         elif stock == 'meme':
             colors.append('#FF6347')  # Tomato TODO rename to 'high risk trading'
         else:
-            # Choose a complementary color that won't clash
             colors.append('#333333')  # Grey = unknown asset
 
     fig, ax = plt.subplots(figsize=(8, 8))
@@ -117,7 +80,15 @@ def load_portfolio():
                 prices.append(float(price))
         return stocks, units, prices
     else:
+        print("Nothing to read...")
         return [], [], []
+
+
+def refresh_portfolio():
+    # Refreshes portfolio data and recreates the pie chart
+    assets, units, prices = load_portfolio()
+    updated_prices = [fetch_price(get_symbol(asset)) for asset in assets]
+    create_pie_chart(assets, units, updated_prices)
 
 
 def main():
@@ -144,10 +115,12 @@ def main():
                     prices.append(price)
             else:
                 print(f"Symbol not found for {asset}.")
-                price = float(input(f"Enter the current price of {asset}: "))
+                if asset == "cash":
+                    price = 1
+                else:
+                    price = float(input(f"Enter the current price of {asset}: "))
                 assets.append(asset)
-                units.append(float(input(f"Enter the number of units of {asset}: ")))
-                prices.append(price)
+                units.append(float(input(f"Enter the number of units of {asset}: ")))  # if cash dont ask for price and set price to 1
 
     save_portfolio(assets, units, prices)
 
@@ -155,17 +128,17 @@ def main():
     print("\nPortfolio Summary:")
     print(df)
 
-    create_pie_chart(assets, units, prices)
-    # Create a Tkinter window and a refresh button
     root = tk.Tk()
-    refresh_button = tk.Button(root, text="Refresh Portfolio", command=partial(refresh_portfolio, assets, units, prices))
+    root.title("Portfolio Manager")
+
+    refresh_command = lambda: refresh_portfolio()
+    refresh_button = tk.Button(root, text="Refresh Portfolio", command=refresh_command)
     refresh_button.pack()
+
+    refresh_portfolio()
 
     root.mainloop()
 
 
 if __name__ == "__main__":
     main()
-
-# selling about 0.005 Btc at a time
-# refresh button that resets pf pricings - part of menu system --
